@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
+import java.util.Stack;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 
 /**
@@ -48,6 +50,9 @@ public class ForkJoinSolver
     {
         this(maze);
         this.forkAfter = forkAfter;
+        this.safeVisit = new ConcurrentSkipListSet<>();
+        frontier.push(start);
+    
     }
 
     /**
@@ -66,9 +71,51 @@ public class ForkJoinSolver
     {
         return parallelSearch();
     }
+    
+    private ConcurrentSkipListSet safeVisit;
+
 
     private List<Integer> parallelSearch()
     {
+   
+        int current = frontier.pop();
+        int player = maze.newPlayer(current);
+        
+
+        if(maze.hasGoal(current)){
+            //do something
+            join();
+            //join/terminate all threads
+        }
+        if(maze.neighbors(current)==null){
+            //do something
+            join();
+        }
+        else if(maze.neighbors(current).equals(1)){
+            //Player move
+        }
+        else{
+            fork();
+        }
+     
+    //create pool
+
+	//Go sequential for forkafter nr of steps
+
+	//Fork after forkafter nr of steps, if more than 1 neighbour, create new players for each thread, call parallellsearch recursivly?
+
+	//join when no more neighbors?
+
+	
+
+	//if you find goal, return path, 
+
+	
+
+	//if no goal can be found, return null
         return null;
     }
+
+
+    //private List<Integer> parallelSearch(int nextNode)
 }
