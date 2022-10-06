@@ -50,8 +50,8 @@ public class ForkJoinSolver
     {
         this(maze);
         this.forkAfter = forkAfter;
-        this.safeVisit = new ConcurrentSkipListSet<>();
-        frontier.push(start);
+        this.safeVisit = new ConcurrentSkipListSet<>();	//Threadsafe storage for visited tiles
+        frontier.push(start);	//save your starting tile in the frontier stack. Java stacks are threadsafe
     
     }
 
@@ -77,11 +77,11 @@ public class ForkJoinSolver
 
     private List<Integer> parallelSearch()
     {
-   
-        int current = frontier.pop();
-        int player = maze.newPlayer(current);
+    	
+        int current = frontier.pop();	//grab a starting tile for your search
+        int player = maze.newPlayer(current);	//start a new player at your starting tile
         
-
+        
         if(maze.hasGoal(current)){
             //do something
             join();
@@ -91,9 +91,21 @@ public class ForkJoinSolver
             //do something
             join();
         }
+        
+       /*if the current tile have only one neighbor, check if that neighbor is not visited. If not 
+        visited move forward and add tile as visited. If not, return null. */
         else if(maze.neighbors(current).equals(1)){
-            //Player move
+        	if() {	 //neighbor visited
+        		//Player move
+        		//add neighbor to visited
+        	}
+        	// The only neighbor is already visited
+        	else { 
+        		return null; //or just join?
+        	}
+        		
         }
+        //If the current tile have more than one neighbor, fork
         else{
             fork();
         }
@@ -102,7 +114,7 @@ public class ForkJoinSolver
 
 	//Go sequential for forkafter nr of steps
 
-	//Fork after forkafter nr of steps, if more than 1 neighbour, create new players for each thread, call parallellsearch recursivly?
+	//Fork after forkafter nr of steps, if more than 1 neighbor, create new players for each thread, call parallellsearch recursivly?
 
 	//join when no more neighbors?
 
