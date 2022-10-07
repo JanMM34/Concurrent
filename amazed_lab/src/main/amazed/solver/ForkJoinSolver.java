@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.ForkJoinPool;
 
 /**
  * <code>ForkJoinSolver</code> implements a solver for
@@ -52,6 +53,7 @@ public class ForkJoinSolver
         this.forkAfter = forkAfter;
         this.safeVisit = new ConcurrentSkipListSet<>();	//Threadsafe storage for visited tiles
         frontier.push(start);	//save your starting tile in the frontier stack. Java stacks are threadsafe
+        ForkJoinPool pool = ForkJoinPool.commonPool(); //Create pool
     
     }
 
@@ -77,16 +79,67 @@ public class ForkJoinSolver
 
     private List<Integer> parallelSearch()
     {
-    	
-        int current = frontier.pop();	//grab a starting tile for your search
-        int player = maze.newPlayer(current);	//start a new player at your starting tile
-        
-        
-        if(maze.hasGoal(current)){
-            //do something
-            join();
-            //join/terminate all threads
+        /*If forkAfter is set then check the first forkAfter numbers of tiles sequentially. */
+        if(forkAfter != null) {
+        	for (int i = forkAfter ; i>0 ; i++) {  
+        		int current = frontier.pop();	//grab a starting tile for your search
+            	int player = maze.newPlayer(current);	//start a new player at your starting tile
+            	
+            	// if current node has a goal
+                if (maze.hasGoal(current)) {
+                    // move player to goal
+                    maze.move(player, current);
+                    // search finished: reconstruct and return path
+                    return pathFromTo(start, current);
+                }
+                
+                // if current node has not been visited yet
+                if (!safeVisit.contains(current)) {
+                    // move player to current node
+                    maze.move(player, current);
+                    // mark node as visited
+                    safeVisit.add(current);
+                    //Check if current have more neighbors and if so add them to frontier
+                    if (!maze.neighbors(current).isEmpty()) {
+                    	// for every node nb adjacent to current
+                        for (int nb: maze.neighbors(current)) {
+                            // add nb to the nodes to be processed
+                            frontier.push(nb);
+                            // if nb has not been already visited,
+                            // nb can be reached from current (i.e., current is nb's predecessor)
+                            if (!safeVisit.contains(nb))
+                                predecessor.put(nb, current);
+                        }
+                    }
+                    //If there are no more neighbors, check if frontier is empty
+                    else if (frontier.isEmpty()) {
+                    	return null;
+                    } 
+                }
+            }
+        	//"kill" player here? Or leave player standing? Reuse?
         }
+        
+        
+     /*If the goal isn't found in those first tiles we will start adding forks at appropriate 
+         * times. If ForkAfter<1 or not set we will start here directly*/
+        while (!frontier.empty()) {
+        	int current = frontier.pop();	//grab a starting tile for your search
+        	int player = maze.newPlayer(current);	//start a new player at your starting tile
+        	
+        	//Check if the current tile has a goal
+        	if (maze.hasGoal(current)) {
+                // move player to goal
+                maze.move(player, current);
+                // search finished: reconstruct and return path
+                return pathFromTo(start, current);
+                
+              //join/terminate all threads?
+        }
+     
+                
+                
+
         if(maze.neighbors(current)==null){
             //do something
             join();
@@ -110,9 +163,7 @@ public class ForkJoinSolver
             fork();
         }
      
-    //create pool
-
-	//Go sequential for forkafter nr of steps
+    
 
 	//Fork after forkafter nr of steps, if more than 1 neighbor, create new players for each thread, call parallellsearch recursivly?
 
