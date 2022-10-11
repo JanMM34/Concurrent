@@ -79,8 +79,8 @@ public class ForkJoinSolver
 
     private List<Integer> parallelSearch()
     {
-        /*If forkAfter is set then check the first forkAfter numbers of tiles sequentially. */
-        if(forkAfter != null) {
+        /*If forkAfter is > 0 then check the first forkAfter numbers of tiles sequentially. */
+        try {
         	for (int i = forkAfter ; i>0 ; i++) {  
         		int current = frontier.pop();	//grab a starting tile for your search
             	int player = maze.newPlayer(current);	//start a new player at your starting tile
@@ -119,6 +119,9 @@ public class ForkJoinSolver
             }
         	//"kill" player here? Or leave player standing? Reuse?
         }
+        catch (Exception e){
+        	System.out.println("Something went wrong with the first sequental steps.");
+        }
         
         
      /*If the goal isn't found in those first tiles we will start adding forks at appropriate 
@@ -135,43 +138,41 @@ public class ForkJoinSolver
                 return pathFromTo(start, current);
                 
               //join/terminate all threads?
-        }
-     
-                
-                
+        	}
+        	
+        	/*If the current tile only have 1 neighbor, it's predecessor, we're
+        	 * at a dead-end*/
+        	if(maze.neighbors(current)==1){
+	            //do something
+	            join();
+	        }
+        	
 
-        if(maze.neighbors(current)==null){
-            //do something
-            join();
+            /*if the current tile have 2 neighbors, including it's predecessor, 
+             * check if that neighbor is not visited. If not 
+            visited move forward and add tile as visited. If not, return null. */
+            else if(maze.neighbors(current).equals(2)){
+            	if() {	 
+            		//neighbor visited
+            	}
+            		//Player move
+            		//add neighbor to visited
+            	}
+            	// The only other neighbor is already visited
+            	else { 
+            		return null; //or just join?
+            	}
+     
+        			
         }
-        
-       /*if the current tile have only one neighbor, check if that neighbor is not visited. If not 
-        visited move forward and add tile as visited. If not, return null. */
-        else if(maze.neighbors(current).equals(1)){
-        	if() {	 //neighbor visited
-        		//Player move
-        		//add neighbor to visited
-        	}
-        	// The only neighbor is already visited
-        	else { 
-        		return null; //or just join?
-        	}
-        		
-        }
-        //If the current tile have more than one neighbor, fork
+        //If the current tile have more than 2 neighbors, create a new instance of ForkJoinSolver and fork
         else{
-            fork();
+        	pool.invoke(new ForkJoinSolver(this.maze, this.forkAfter);
         }
      
-    
+   
 
-	//Fork after forkafter nr of steps, if more than 1 neighbor, create new players for each thread, call parallellsearch recursivly?
 
-	//join when no more neighbors?
-
-	
-
-	//if you find goal, return path, 
 
 	
 
