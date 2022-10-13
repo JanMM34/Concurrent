@@ -126,7 +126,7 @@ public class ForkJoinSolver
         	System.out.println("Something went wrong with the first sequental steps.");
         }
         
-       
+       //Cecilia
      /*If the goal isn't found in those first tiles we will start adding forks at appropriate 
          * times. If ForkAfter<1 or not set we will start here directly
         while (!frontier.empty()) {
@@ -150,7 +150,7 @@ public class ForkJoinSolver
 	            join();
 	        }
         	
-
+            //Jan
             /*if the current tile have 2 neighbors, including it's predecessor, 
              * check if that neighbor is not visited. If not 
             visited move forward and add tile as visited. If not, return null. 
