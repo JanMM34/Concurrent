@@ -81,9 +81,10 @@ public class ForkJoinSolver
     {
         /*If forkAfter is > 0 then check the first forkAfter numbers of tiles sequentially. */
         try {
+            int current = frontier.pop();	//grab a starting tile for your search
+            int player = maze.newPlayer(current);	//start a new player at your starting tile
         	for (int i = forkAfter ; i>0 ; i++) {  
-        		int current = frontier.pop();	//grab a starting tile for your search
-            	int player = maze.newPlayer(current);	//start a new player at your starting tile
+        		
             	
             	// if current node has a goal
                 if (maze.hasGoal(current)) {
@@ -96,7 +97,7 @@ public class ForkJoinSolver
                 // if current node has not been visited yet
                 if (!safeVisit.contains(current)) {
                     // move player to current node
-                    maze.move(player, current);
+                    
                     // mark node as visited
                     safeVisit.add(current);
                     //Check if current have more neighbors and if so add them to frontier
@@ -116,6 +117,8 @@ public class ForkJoinSolver
                     	return null;
                     } 
                 }
+                current = frontier.pop();	//grab a starting tile for your search
+                maze.move(player, current);
             }
         	//"kill" player here? Or leave player standing? Reuse?
         }
@@ -123,9 +126,9 @@ public class ForkJoinSolver
         	System.out.println("Something went wrong with the first sequental steps.");
         }
         
-        
+       
      /*If the goal isn't found in those first tiles we will start adding forks at appropriate 
-         * times. If ForkAfter<1 or not set we will start here directly*/
+         * times. If ForkAfter<1 or not set we will start here directly
         while (!frontier.empty()) {
         	int current = frontier.pop();	//grab a starting tile for your search
         	int player = maze.newPlayer(current);	//start a new player at your starting tile
@@ -141,19 +144,19 @@ public class ForkJoinSolver
         	}
         	
         	/*If the current tile only have 1 neighbor, it's predecessor, we're
-        	 * at a dead-end*/
-        	if(maze.neighbors(current)==1){
-	            //do something
+        	 * at a dead-end
+        	if(maze.neighbors(current)==1 ){ 
+	            //do something add current thread path 
 	            join();
 	        }
         	
 
             /*if the current tile have 2 neighbors, including it's predecessor, 
              * check if that neighbor is not visited. If not 
-            visited move forward and add tile as visited. If not, return null. */
+            visited move forward and add tile as visited. If not, return null. 
             else if(maze.neighbors(current).equals(2)){
             	if() {	 
-            		//neighbor visited
+            		//neighbor visited, we can go no further here
             	}
             		//Player move
             		//add neighbor to visited
@@ -172,7 +175,7 @@ public class ForkJoinSolver
      
    
 
-
+*/
 
 	
 
