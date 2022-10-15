@@ -128,7 +128,7 @@ public class ForkJoinSolver
        //Cecilia
         /*If the goal isn't found in those first tiles we will start adding forks at appropriate 
         * times. If ForkAfter<1 or not set we will start here directly
-        */
+        
         while (!frontier.empty()) {
         	int current = frontier.pop();	//grab a starting tile for your search
         	int player = maze.newPlayer(current);	//start a new player at your starting tile
@@ -145,15 +145,7 @@ public class ForkJoinSolver
         	
         	/*If the current tile only have 1 neighbor, it's predecessor, we're
         	 * at a dead-end
-            */
-
-
             
-            for (Integer nei : maze.neighbors(current)){
-                if(!safeVisit.contains(nei)){
-                    predecessor.put(nei, current);
-                }
-            }
 
             //Jan
         	if(maze.neighbors(current)==1 ){ 
