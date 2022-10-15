@@ -148,12 +148,14 @@ public class ForkJoinSolver
             */
 
 
-            //Jan
+            
             for (Integer nei : maze.neighbors(current)){
                 if(!safeVisit.contains(nei)){
                     predecessor.put(nei, current);
                 }
             }
+
+            //Jan
         	if(maze.neighbors(current)==1 ){ 
 	            //do something add current thread path 
 	            join();
