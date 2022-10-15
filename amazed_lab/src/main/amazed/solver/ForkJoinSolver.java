@@ -85,7 +85,6 @@ public class ForkJoinSolver
             int player = maze.newPlayer(current);	//start a new player at your starting tile
         	for (int i = forkAfter ; i>0 ; i++) {  
         		
-            	
             	// if current node has a goal
                 if (maze.hasGoal(current)) {
                     // move player to goal
@@ -127,8 +126,9 @@ public class ForkJoinSolver
         }
         
        //Cecilia
-     /*If the goal isn't found in those first tiles we will start adding forks at appropriate 
-         * times. If ForkAfter<1 or not set we will start here directly
+        /*If the goal isn't found in those first tiles we will start adding forks at appropriate 
+        * times. If ForkAfter<1 or not set we will start here directly
+        */
         while (!frontier.empty()) {
         	int current = frontier.pop();	//grab a starting tile for your search
         	int player = maze.newPlayer(current);	//start a new player at your starting tile
@@ -145,17 +145,29 @@ public class ForkJoinSolver
         	
         	/*If the current tile only have 1 neighbor, it's predecessor, we're
         	 * at a dead-end
+            */
+
+
+            //Jan
+            for (Integer nei : maze.neighbors(current)){
+                if(!safeVisit.contains(nei)){
+                    predecessor.put(nei, current);
+                }
+            }
         	if(maze.neighbors(current)==1 ){ 
 	            //do something add current thread path 
 	            join();
 	        }
         	
-            //Jan
+        
             /*if the current tile have 2 neighbors, including it's predecessor, 
              * check if that neighbor is not visited. If not 
-            visited move forward and add tile as visited. If not, return null. 
-            else if(maze.neighbors(current).equals(2)){
-            	if() {	 
+             * visited move forward and add tile as visited. If not, return null. 
+             */
+            
+             else if(maze.neighbors(current).equals(2)){
+                
+            	if(!safeVisit.containsAll(maze.neighbors(current))) {	 
             		//neighbor visited, we can go no further here
             	}
             		//Player move
@@ -173,11 +185,6 @@ public class ForkJoinSolver
         	pool.invoke(new ForkJoinSolver(this.maze, this.forkAfter);
         }
      
-   
-
-*/
-
-	
 
 	//if no goal can be found, return null
         return null;
