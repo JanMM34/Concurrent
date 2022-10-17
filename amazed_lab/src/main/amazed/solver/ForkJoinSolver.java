@@ -1,6 +1,7 @@
 package amazed.solver;
 
 import amazed.maze.Maze;
+import amazed.maze.Player;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -11,6 +12,8 @@ import java.util.Stack;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ForkJoinPool;
+
+import javax.swing.plaf.ColorUIResource;
 
 /**
  * <code>ForkJoinSolver</code> implements a solver for
@@ -25,6 +28,10 @@ import java.util.concurrent.ForkJoinPool;
 public class ForkJoinSolver
     extends SequentialSolver
 {
+    private int player;
+    
+    private static boolean found = false;
+    private ConcurrentSkipListSet<Integer> safeVisit;
     /**
      * Creates a solver that searches in <code>maze</code> from the
      * start node to a goal.
@@ -34,6 +41,7 @@ public class ForkJoinSolver
     public ForkJoinSolver(Maze maze)
     {
         super(maze);
+        this.safeVisit = new ConcurrentSkipListSet<>();
     }
 
     /**
@@ -47,15 +55,27 @@ public class ForkJoinSolver
      *                    <code>forkAfter &lt;= 0</code> the solver never
      *                    forks new tasks
      */
-    public ForkJoinSolver(Maze maze, int forkAfter)
-    {
+
+
+
+    //ForkJoinPool pool = ForkJoinPool.commonPool();
+    public ForkJoinSolver(Maze maze, int forkAfter){
         this(maze);
         this.forkAfter = forkAfter;
-        this.safeVisit = new ConcurrentSkipListSet<>();	//Threadsafe storage for visited tiles
-        frontier.push(start);	//save your starting tile in the frontier stack. Java stacks are threadsafe
-        ForkJoinPool pool = ForkJoinPool.commonPool(); //Create pool
-    
+        //save your starting tile in the frontier stack. Java stacks are threadsafe
     }
+
+
+
+    private ForkJoinSolver(Maze maze, int forkAfter,int tile,ConcurrentSkipListSet<Integer> safeVisit) {
+        super(maze);
+        this.forkAfter = forkAfter;
+        this.start = tile;
+        this.safeVisit = safeVisit;
+        
+    }
+
+
 
     /**
      * Searches for and returns the path, as a list of node
@@ -74,116 +94,106 @@ public class ForkJoinSolver
         return parallelSearch();
     }
     
-    private ConcurrentSkipListSet safeVisit;
-
+  
 
     private List<Integer> parallelSearch()
-    {
-        /*If forkAfter is > 0 then check the first forkAfter numbers of tiles sequentially. */
-        try {
-            int current = frontier.pop();	//grab a starting tile for your search
-            int player = maze.newPlayer(current);	//start a new player at your starting tile
-        	for (int i = forkAfter ; i>0 ; i++) {  
-        		
-            	// if current node has a goal
-                if (maze.hasGoal(current)) {
-                    // move player to goal
-                    maze.move(player, current);
-                    // search finished: reconstruct and return path
-                    return pathFromTo(start, current);
-                }
-                
-                // if current node has not been visited yet
-                if (!safeVisit.contains(current)) {
-                    // move player to current node
-                    
-                    // mark node as visited
-                    safeVisit.add(current);
-                    //Check if current have more neighbors and if so add them to frontier
-                    if (!maze.neighbors(current).isEmpty()) {
-                    	// for every node nb adjacent to current
-                        for (int nb: maze.neighbors(current)) {
-                            // add nb to the nodes to be processed
-                            frontier.push(nb);
-                            // if nb has not been already visited,
-                            // nb can be reached from current (i.e., current is nb's predecessor)
-                            if (!safeVisit.contains(nb))
-                                predecessor.put(nb, current);
-                        }
-                    }
-                    //If there are no more neighbors, check if frontier is empty
-                    else if (frontier.isEmpty()) {
-                    	return null;
-                    } 
-                }
-                current = frontier.pop();	//grab a starting tile for your search
-                maze.move(player, current);
+    {   
+        this.player = maze.newPlayer(start);
+        frontier.push(start);
+
+       
+        for(int i = 0; i<forkAfter; i++){
+            if(frontier.empty() || found) continue;
+            int current = frontier.pop();
+            if (!safeVisit.add(current)) { //if it's already visited continue
+                continue;
             }
-        	//"kill" player here? Or leave player standing? Reuse?
+
+            maze.move(player, current);
+    
+        	// if current node has a goal
+            if (maze.hasGoal(current)) {
+                // search finished: reconstruct and return path
+                found = true;
+                joinSolvers();
+                return pathFromTo(start, current);
+            
+            }
+            // if current node has not been visited yet
+            for (int nb: maze.neighbors(current)) {       
+                if (!safeVisit.contains(nb)){
+                    frontier.push(nb);
+                    predecessor.put(nb, current);
+                } 
+            }
         }
-        catch (Exception e){
-        	System.out.println("Something went wrong with the first sequental steps.");
-        }
-        
-       //Cecilia
+    
+      
         /*If the goal isn't found in those first tiles we will start adding forks at appropriate 
         * times. If ForkAfter<1 or not set we will start here directly
-        
-        while (!frontier.empty()) {
-        	int current = frontier.pop();	//grab a starting tile for your search
-        	int player = maze.newPlayer(current);	//start a new player at your starting tile
+        */
+        int steps = 0;
+        while (!frontier.empty() && !found) {
+            
+            int current = frontier.pop();
+            	//grab a starting tile for your search
         	
+            if (!safeVisit.add(current)) { //if it's already visited continue
+                continue;
+            }
+
+            maze.move(player, current);
+        	
+
         	//Check if the current tile has a goal
         	if (maze.hasGoal(current)) {
-                // move player to goal
-                maze.move(player, current);
+                found = true;
                 // search finished: reconstruct and return path
+                joinSolvers();
                 return pathFromTo(start, current);
-                
-              //join/terminate all threads?
         	}
-        	
-        	/*If the current tile only have 1 neighbor, it's predecessor, we're
-        	 * at a dead-end
-            
 
-            //Jan
-        	if(maze.neighbors(current)==1 ){ 
-	            //do something add current thread path 
-	            join();
-	        }
-        	
-        
-            /*if the current tile have 2 neighbors, including it's predecessor, 
-             * check if that neighbor is not visited. If not 
-             * visited move forward and add tile as visited. If not, return null. 
-             */
-            
-             else if(maze.neighbors(current).equals(2)){
-                
-            	if(!safeVisit.containsAll(maze.neighbors(current))) {	 
-            		//neighbor visited, we can go no further here
-            	}
-            		//Player move
-            		//add neighbor to visited
-            	}
-            	// The only other neighbor is already visited
-            	else { 
-            		return null; //or just join?
-            	}
-     
-        			
-        }
-        //If the current tile have more than 2 neighbors, create a new instance of ForkJoinSolver and fork
-        else{
-        	pool.invoke(new ForkJoinSolver(this.maze, this.forkAfter);
-        }
-     
+            ArrayList<Integer> unvisitedNeighbors = new ArrayList<>();
 
-	//if no goal can be found, return null
-        return null;
+            for(Integer nb: maze.neighbors(current)){
+                if(!safeVisit.contains(nb)) unvisitedNeighbors.add(nb);
+            }
+
+            for (int i = 0; i < unvisitedNeighbors.size(); i++) {
+                int nb = unvisitedNeighbors.get(i);
+                predecessor.put(nb, current);
+                if (i == 0 || steps>0) {
+                    frontier.push(nb);
+                    steps--;
+                } else {
+                    steps = this.forkAfter;
+                    ForkJoinSolver solver = new ForkJoinSolver(maze, this.forkAfter, nb, safeVisit);
+                    solversPool.add(solver); //add the new process to the pool;
+                    solver.fork();
+                }
+            } 
+        }
+
+        List<Integer> pathToGoal = joinSolvers();
+
+        if (pathToGoal == null) return null;
+        int mid = pathToGoal.remove(0);
+        List<Integer> pathFromStart = pathFromTo(start, mid);
+        pathFromStart.addAll(pathToGoal);
+        return pathFromStart;
     }
+    
+    private List<ForkJoinSolver> solversPool = new ArrayList<>();
 
 
+    private List<Integer> joinSolvers() {
+        List<Integer> result = null;
+        for (ForkJoinSolver solver : solversPool) {
+            if(solver.join() == null) continue;
+            result = solver.join();
+            
+        }
+        return result;
+    }
     //private List<Integer> parallelSearch(int nextNode)
 }
