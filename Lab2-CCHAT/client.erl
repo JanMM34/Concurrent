@@ -6,7 +6,9 @@
 -record(client_st, {
     gui, % atom of the GUI process
     nick, % nick/username of the client
-    server % atom of the chat server
+    server, % atom of the chat server
+    channels %list of channels the user joined
+
 }).
 
 % Return an initial state record. This is called from GUI.
@@ -15,8 +17,10 @@ initial_state(Nick, GUIAtom, ServerAtom) ->
     #client_st{
         gui = GUIAtom,
         nick = Nick,
-        server = ServerAtom
+        server = ServerAtom,
+        channels = []
     }.
+
 
 % handle/2 handles each kind of request from GUI
 % Parameters:
@@ -26,28 +30,106 @@ initial_state(Nick, GUIAtom, ServerAtom) ->
 %   - Data is what is sent to GUI, either the atom `ok` or a tuple {error, Atom, "Error message"}
 %   - NewState is the updated state of the client
 
+
 % Join channel
 handle(St, {join, Channel}) ->
-    % TODO: Implement this function
-    % {reply, ok, St} ;
-    {reply, {error, not_implemented, "join not implemented"}, St} ;
+
+    %Send request to the server to join a channel
+    case (catch genserver:request(St#client_st.server, {join, self(), St#client_st.nick, Channel})) of
+        ok ->
+            %We add the new channel to the users channel list
+            NewChannelsList = [Channel | St#client_st.channels],
+            {reply, ok, St#client_st{channels=NewChannelsList}};
+        
+        %catch errors
+        timeout_error ->
+            {reply, {error,server_not_reached,"Server not reached"}, St};
+        {'EXIT', _} ->
+            {reply, {error,server_not_reached,"Server not reached"}, St};
+        Error -> {reply, Error,St}
+
+        end;
+
+
 
 % Leave channel
 handle(St, {leave, Channel}) ->
-    % TODO: Implement this function
-    % {reply, ok, St} ;
-    {reply, {error, not_implemented, "leave not implemented"}, St} ;
+
+    %Send request to a Channel to leave
+    case (catch genserver:request(list_to_atom(Channel), {leave, self()})) of
+        ok ->
+            %We remove the channel from the list
+            {reply, ok, St#client_st{channels=lists:delete(Channel, St#client_st.channels)}};  
+
+        %catch errors
+        timeout_error ->
+            {reply, {error,server_not_reached,"Server not reached"}, St};
+        {'EXIT', _} ->
+            {reply, {error,server_not_reached,"Server not reached"}, St};
+        Error -> {reply, Error,St}
+
+        
+    end;   
+
+    
 
 % Sending message (from GUI, to channel)
 handle(St, {message_send, Channel, Msg}) ->
-    % TODO: Implement this function
-    % {reply, ok, St} ;
-    {reply, {error, not_implemented, "message sending not implemented"}, St} ;
+
+    %We send a request to the server to see if channel exists
+    case (catch genserver:request(St#client_st.server, {channel_exist, Channel})) of
+        ok ->
+            %If the channel exists we check if user has joined it
+            case lists:member(Channel, St#client_st.channels) of
+
+                %if user hasn't joined send atom user_not_joined
+                false ->
+                    {reply, {error, user_not_joined, "You are not in the channel "++Channel}, St};
+                %if user is in the channel send request to the Channel process to send message
+                true ->
+                    Response = genserver:request(list_to_atom(Channel),{message_send, self(), St#client_st.nick,Msg}),
+                    {reply, Response, St}
+            end;
+        
+        %If ther is an error it's beacause user hasn't joined the channel or server is down
+        Error ->
+            %If server is down we can still try to send request to the Channel process
+            case (catch genserver:request(list_to_atom(Channel),{message_send, self(), St#client_st.nick,Msg})) of
+                ok ->
+                    {reply, ok, St};
+                
+                %catch errors
+                Error ->
+                    {reply, {error,server_not_reached,"Server not reached"},St};
+                timeout_error ->
+                    {reply, {error,server_not_reached,"Server not reached"}, St};
+                {'EXIT', _} ->
+                    {reply, {error,server_not_reached,"Server not reached"}, St}
+
+                end
+
+        end;
+
+    
+
+
+
+    
 
 % This case is only relevant for the distinction assignment!
 % Change nick (no check, local only)
 handle(St, {nick, NewNick}) ->
-    {reply, ok, St#client_st{nick = NewNick}} ;
+    %request the server to change nick
+    case (catch genserver:request(St#client_st.server, {nick,St#client_st.nick, NewNick})) of
+        ok ->
+            {reply, ok, St#client_st{nick = NewNick}} ;
+        nick_taken ->
+            {reply,nick_taken,St};
+        Error ->
+            {reply, Error, St}
+        end;
+
+    
 
 % ---------------------------------------------------------------------------
 % The cases below do not need to be changed...
@@ -68,5 +150,9 @@ handle(St, quit) ->
     {reply, ok, St} ;
 
 % Catch-all for any unhandled requests
-handle(St, Data) ->
+handle(St, _) ->
     {reply, {error, not_implemented, "Client does not handle this command"}, St} .
+
+
+
+
