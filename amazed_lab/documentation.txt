@@ -1,0 +1,18 @@
+DESCRIPTION OF THE SOLUTION:
+
+My approach to create the ForkJoinSolver is an implementation of the SequentialSolver solution for the ForkAfter
+steps followed by a frok/join approach for the concurrent part.
+
+When a solver faces that there are more than 1 unvisited neighbour and doesn't has any more steps of the ForkAfter, 
+it will create a new Solver that will have the unvisited neighbour as it's starting tile. This solver will be stored 
+inside an ArrayList to be able to recreate the path if a child finds the goal.
+
+When a solver doen't have any unvisited tile in their stack it will return null.
+When a solver finds a goal it will notify it to the other solver through a static boolean return the path and return 
+the path from it's starting node to the goal. The parent solver will then have to join it's path from the start with 
+his child path.
+
+The only data structure we have to share is the ConcurrentSkipListSet visited set beacause each process doesn't need 
+to know the stack of the others or the path map beacause each one will have their stack of nodes to be visited and 
+return their path done. We have a static boolean variable found but it will be changed only one time when the goal is 
+found so we won't have data races.

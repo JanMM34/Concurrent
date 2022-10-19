@@ -42,6 +42,9 @@ public class ForkJoinSolver
     {
         super(maze);
         this.safeVisit = new ConcurrentSkipListSet<>();
+        //create a player in the start tile and push the start tile to the
+        this.player = maze.newPlayer(start);
+        frontier.push(start);
     }
 
     /**
@@ -58,20 +61,22 @@ public class ForkJoinSolver
 
 
 
-    //ForkJoinPool pool = ForkJoinPool.commonPool();
+ 
     public ForkJoinSolver(Maze maze, int forkAfter){
         this(maze);
         this.forkAfter = forkAfter;
-        //save your starting tile in the frontier stack. Java stacks are threadsafe
+
     }
 
 
-
+    //private constructor for initialize when forking
     private ForkJoinSolver(Maze maze, int forkAfter,int tile,ConcurrentSkipListSet<Integer> safeVisit) {
         super(maze);
         this.forkAfter = forkAfter;
         this.start = tile;
         this.safeVisit = safeVisit;
+        this.player = maze.newPlayer(start);
+        frontier.push(start);
         
     }
 
@@ -98,10 +103,8 @@ public class ForkJoinSolver
 
     private List<Integer> parallelSearch()
     {   
-        this.player = maze.newPlayer(start);
-        frontier.push(start);
+        //We will do sequential search n steps, where n = forkAfter
 
-       
         for(int i = 0; i<forkAfter; i++){
             if(frontier.empty() || found) continue;
             int current = frontier.pop();
@@ -132,6 +135,8 @@ public class ForkJoinSolver
         /*If the goal isn't found in those first tiles we will start adding forks at appropriate 
         * times. If ForkAfter<1 or not set we will start here directly
         */
+        //we create this variable beacause the process that doesn't fork has to continue with the forkAfter procedure
+        
         int steps = 0;
         while (!frontier.empty() && !found) {
             
@@ -155,18 +160,26 @@ public class ForkJoinSolver
 
             ArrayList<Integer> unvisitedNeighbors = new ArrayList<>();
 
+            //add every unvisited neighbor to unvisitedNeighbors
             for(Integer nb: maze.neighbors(current)){
                 if(!safeVisit.contains(nb)) unvisitedNeighbors.add(nb);
             }
 
+            
             for (int i = 0; i < unvisitedNeighbors.size(); i++) {
                 int nb = unvisitedNeighbors.get(i);
                 predecessor.put(nb, current);
+                //we won't fork if we only have 1 neighbour or we still have steps of the forkAfter avaliable
                 if (i == 0 || steps>0) {
+                    
                     frontier.push(nb);
                     steps--;
-                } else {
+                } 
+                //if we have more than one neighbor and steps == 0 
+                //we will fork and restore the steps to the forkAfter value
+                else {
                     steps = this.forkAfter;
+                    //we create a new solver object, add it to the pool and fork
                     ForkJoinSolver solver = new ForkJoinSolver(maze, this.forkAfter, nb, safeVisit);
                     solversPool.add(solver); //add the new process to the pool;
                     solver.fork();
@@ -174,8 +187,10 @@ public class ForkJoinSolver
             } 
         }
 
+        //join solvers and recreate path
         List<Integer> pathToGoal = joinSolvers();
 
+        //if the path to goal is null return null
         if (pathToGoal == null) return null;
         int mid = pathToGoal.remove(0);
         List<Integer> pathFromStart = pathFromTo(start, mid);
@@ -188,6 +203,7 @@ public class ForkJoinSolver
 
     private List<Integer> joinSolvers() {
         List<Integer> result = null;
+        //for every solver of the pool, we will join and return the result
         for (ForkJoinSolver solver : solversPool) {
             if(solver.join() == null) continue;
             result = solver.join();
@@ -195,5 +211,5 @@ public class ForkJoinSolver
         }
         return result;
     }
-    //private List<Integer> parallelSearch(int nextNode)
+    
 }
